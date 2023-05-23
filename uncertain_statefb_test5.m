@@ -1,67 +1,60 @@
-% Unknown A B C dynamics. Output feedback feedback case. Update L1 only. F and S have no common eigenvalues.
+% Unknown A B C dynamics. state feedback feedback case. Update L1 only. F and S have no common eigenvalues.
 %S is jordan block or unstable
+
+% Unknown A B C dynamics. State feedback case. 
 
 % Change A such that the center can be shifted
 clc;clear all;
-% load('uncertain_output_test2_bad_result_1', 'A', 'B', 'C')
 rot_2d = @(t) [cos(t), -sin(t); sin(t), cos(t)];
 
 map_size = [100,100]; % cm
 N=1;n=4; %agent 1 original L_bar, agent i L_bar + delta_L_i
 w=1;
 l = 7;
-S = [0, 1; 0, 0]; %Jordan block
+S = [0, 1; 0, 0]; % exp(S_t) is counter clockwise ()
 Q = [1 -1; 1 -1]; % y ---> Qv. y ---> [t; t]
 v0 = [0 1];
 
-A_bar = [0 1 0 1;...
-    0 0 1 -1;...
-    0 0 -1 1;...
-    0 0 0 0];
+
+A_bar = [0 1 0 0;...
+         0 0 0 0;...
+         0 0 0 1;...
+         0 0 0 0];
 
 % A = A_bar;
 
 % A = A_bar + rand(n,n)-0.5;
-% A = A_bar + 0.5*(rand(4,4)-0.5);
-% A = A_bar +0.5*[ 0.2786   -0.1546    0.1973    0.2723;
+% A = A_bar -[ 0.2786   -0.1546    0.1973    0.2723;
 %             -0.2095   -0.1459   -0.1236    0.2417;
 %             -0.2604    0.0647    0.2809   -0.1941;
 %             -0.1072   -0.0933    0.1338   -0.1169];
 
-A = A_bar +0.5*[ 0   -0.1546    0.1973    0.2723;
-    -0   -0.1459   -0.1236    0.2417;
-    -0    0.0647    0.2809   -0.1941;
-    -0   -0.0933    0.1338   -0.1169];
-
-% A = -0.0247    0.8262   -0.2109    0.7523
-%    -0.2081    0.1629    0.9713   -0.8625
-%    -0.1355    0.0192   -1.1967    1.1587
-%     0.2067    0.2481    0.2309    0.1843]
+            A = A_bar +[  0     0     0.087045      -0.029077;
+                        0     0     -0.19875     -0.29226;  
+                        0     0     0     0;
+                        0     0     0     0;];
 
 % A = -A_bar;
 
 % B = [0 0;
 %      1 0;
-%      0 0;
+%      0 0; 
 %      0 1] + (0.5-rand(4,2));
 B_bar = [0 0;
-    1 0;
-    0 0;
-    0 1];
+        1 0;
+        0 0; 
+        0 1];
 % B = B_bar;
-% B = B_bar + 0.5*(rand(4,2)-0.5);
-B = B_bar + 0.5*[ 0.0073   -0.2079;
-    -0.1501   -0.1461;
-    0.1791   -0.2297;
-    0.0391   -0.0779];
-
+B = B_bar + [ 0.0073   -0.2079;
+     -0.1501   -0.1461;
+      0.1791   -0.2297;
+      0.0391   -0.0779];
 
 C_bar= [1 0 0 0;
     0 0 1 0];
 % C = C_bar;
-% C = C_bar +0.5*(rand(2,4)-0.5);
-C = C_bar + 0.5*[0.2321   -0.2170   -0.1289    0.0539;
-    -0.1746   -0.0894   -0.1216   -0.0777];
+C = C_bar + [0.2321   -0.2170   -0.1289    0.0539;
+            -0.1746   -0.0894   -0.1216   -0.0777];
 
 A_c = kron(eye(N), A);
 B_c = kron(eye(N), B);
@@ -72,41 +65,18 @@ K = -K;
 
 K_c = kron(eye(N), K);
 
-[~, G, ~] = icare(A_bar',C_bar',3*eye(n),[],[],[],[]); %Should be optimal
-G = G';
-
-H = 1; %single agent
-re_lambda_list = real(eig(H));
-mu = 1.01/min(re_lambda_list);
-G = mu*G;
-G_c = kron(eye(N), G);
-
-%Design F based on nominal model
-F = A_bar+B_bar*K-G*C_bar;
 
 
 phi_list = 2*pi*rand(1,N); %%initial phases
 
-%derived from sylvester equation
-A_f_bar = [A_bar, B_bar*K;
-    G*C_bar, kron(eye(N), F)];
-
-sylv_sq_mat = -kron(S', eye(2*n,2*n))+kron(eye(2,2)', A_f_bar);
-pz_pl = - kron(eye(2), [C_bar, zeros(2,n)])*inv(sylv_sq_mat)*kron(eye(2,2),[B_bar; zeros(n,2)]); %pd z/pd l based on the nominal model
-nominal_pz_pl = pz_pl;
-
 %nominal model IMP
-% Pi_bar = zeros(n,2);
-% Gamma_bar = zeros(2,2);
+Pi_bar = zeros(n,2);
+Gamma_bar = zeros(2,2);
 
-% [Pi_bar, Gamma_bar] = IMP_full_solver(A_bar,B_bar,C_bar,zeros(n,2),-eye(2,2), S);
-% Sigma_bar = Pi_bar;
-%based on nominal model
+[Pi_bar, Gamma_bar] = IMP_full_solver(A_bar,B_bar,C_bar,zeros(n,2),-eye(2,2), S);
+L_bar=Gamma_bar - K*Pi_bar;
 
-L_1_bar=reshape(inv(nominal_pz_pl)*Q(:), [2,2]);
-L_2_bar= zeros(n,2) ; %Force it to be 0
-
-% L_bar = L_bar - rand(2,2)*3; %debug
+% L_bar = L_bar - rand(2,2)*3; %debug 
 
 % Pi = zeros(n,2);
 % Gamma = zeros(2,2);
@@ -114,11 +84,68 @@ L_2_bar= zeros(n,2) ; %Force it to be 0
 % [Pi, Gamma ]= IMP_full_solver(A,B,C,zeros(n,2),-eye(2,2), S);
 % L=Gamma - K*Pi
 
-L_1c = kron(eye(N),L_1_bar);
-L_2c = kron(eye(N),L_2_bar);
+L_c = kron(eye(N),L_bar);
 
 dt = 0.01; %1/dt should be integer
-t_max = 400;
+t_max = 150;
+t=0;
+
+X = zeros(N,t_max/dt); % x position
+Y = zeros(N,t_max/dt);
+% leader_offset = [30; 30];
+Omega_c = zeros(2*N,t_max/dt);
+X_c =  zeros(n*N,t_max/dt);
+
+Gramm_c = [];% obtained from [t, t+1]
+
+R_relative = zeros(N,t_max/dt);
+
+
+X(:,1) =zeros(N,1);
+Y(:,1) =zeros(N,1);
+X(:,1) =0.3*map_size(1)*(rand(N,1)-0.5);
+Y(:,1) =0.3*map_size(2)*(rand(N,1)-0.5);
+% disp("Initial  positions")
+% [X(:,1)'; Y(:,1)']
+
+
+X_c(1:n:end, 1) = X(:,1); %All other states are set to zero. Xi_c also set to all zero
+X_c(2:n:end, 1) = 0;
+X_c(3:n:end, 1) = Y(:,1);
+X_c(4:n:end, 1) = 0;
+
+disp("Initial conditions")
+reshape(X_c(:,1),[n,N])
+
+A_closed = [A_c+ B_c*K_c, B_c*L_c;
+           zeros(2*N, n*N), kron(eye(N), S)];
+
+Omega_c(:,1) = reshape([l*cos(phi_list); l*sin(phi_list)], [2*N,1]);
+
+state_cl = [X_c(:,1);Omega_c(:,1)]; 
+
+
+% Prof's idea, optimization like
+h_gram = 1; %grammian calculation period
+counter = 0; %count the times of grammian calculations
+update_L_index = 0;
+
+%For updating the map from l to z
+l_list = [];
+z_list = []; 
+
+%derived from sylvester equation
+sylv_sq_mat = -kron(S', eye(n,n))+kron(eye(2,2)', A_bar+B_bar*K);
+pz_pl = - kron(eye(2), C_bar)*inv(sylv_sq_mat)*kron(eye(2,2), B_bar); %pd z/pd l based on the nominal model
+
+nominal_pz_pl = pz_pl;
+
+actual_sylv_sq_mat = -kron(S', eye(n,n))+kron(eye(2,2)', A+B*K);
+actual_pz_pl = - kron(eye(2), C)*inv(actual_sylv_sq_mat)*kron(eye(2,2), B);
+
+
+dt = 0.01; %1/dt should be integer
+t_max = 150;
 t=0;
 
 X = zeros(N,t_max/dt); % x position
@@ -165,11 +192,10 @@ disp("Initial conditions")
 reshape(X_c(:,1),[n,N])
 
 %actual model
-A_closed = [A_c, B_c*K_c, B_c*L_1c;
-    kron(H,G*C), kron(eye(N), F), L_2c;
-    zeros(2*N, 2*n*N), kron(eye(N), S)];
+A_closed = [A_c+ B_c*K_c, B_c*L_c;
+zeros(2*N, n*N), kron(eye(N), S)];
 
-state_cl = [X_c(:,1); Xi_c(:,1); Omega_c(:,1)];
+state_cl = [X_c(:,1); Omega_c(:,1)];
 
 
 % Prof's idea, optimization like
@@ -182,14 +208,14 @@ l_list = [];
 z_list = [];
 
 % mapping from l to z based on actual model
-A_f_actual = [A, B*K;
-    G*C, kron(eye(N), F)];
-actual_sylv_sq_mat = -kron(S', eye(2*n,2*n))+kron(eye(2,2)', A_f_actual);
-actual_pz_pl = - kron(eye(2), [C, zeros(2,n)])*inv(actual_sylv_sq_mat)*kron(eye(2,2),[B; zeros(n,2)]);
+% A_f_actual = [A, B*K;
+%     G*C, kron(eye(N), F)];
+% actual_sylv_sq_mat = -kron(S', eye(2*n,2*n))+kron(eye(2,2)', A_f_actual);
+% actual_pz_pl = - kron(eye(2), [C, zeros(2,n)])*inv(actual_sylv_sq_mat)*kron(eye(2,2),[B; zeros(n,2)]);
 
-% L_1_bar=reshape(inv(actual_pz_pl)*Q(:), [2,2]); %debug
+% L_bar=reshape(inv(actual_pz_pl)*Q(:), [2,2]); %debug
 
-if (any(real(eig(A_f_actual)) > -0.05))
+if (any(real(eig(A+B*K)) > -0.05))
     error("actual model is not stable")
 end
 W_op = diag([100,100,1,1]); % 1/2 (z - q)^T W_op (z-q)
@@ -203,8 +229,7 @@ for k= 2:(t_max/dt)
     state_cl = expm(A_closed*dt)*state_cl;
     
     X_c(:,k) = state_cl(1:n*N);
-    Xi_c(:,k) = state_cl(n*N+1:2*n*N);
-    Omega_c(:,k) = state_cl(2*n*N+1:2*n*N+2*N);
+    Omega_c(:,k) = state_cl(n*N+1:end);
     
     for j =1:N
         X(j,k) = X_c(n*(j-1)+1, k); % Assume C = (I_2 0)
@@ -237,7 +262,7 @@ for k= 2:(t_max/dt)
             if (all( abs(Gramm_c(:,end-1:end) - Gramm_c(:,end-3:end-2)) < 0.1) )
                 % % norm(Gramm_c(:,end-1:end))*0.001
                 % %debug: get the pi from the actual model
-                % pi_sigma = -inv(actual_sylv_sq_mat)*kron(eye(2,2), blkdiag(B, eye(n,n)))*reshape([L_1_bar; L_2_bar], [2*(n+2),1]);
+                % pi_sigma = -inv(actual_sylv_sq_mat)*kron(eye(2,2), blkdiag(B, eye(n,n)))*reshape([L_bar; L_2_bar], [2*(n+2),1]);
                 % temp_gramm = reshape(pi_sigma, [2*n, 2]);
                 % temp_gramm = temp_gramm(1:n,:);
                 
@@ -245,9 +270,9 @@ for k= 2:(t_max/dt)
                 % Gramm_c(:,end-1:end) = temp_gramm;
                 % %debug end
                 
-                l_temp = reshape([L_1_bar], [4,1]);
+                l_temp = reshape([L_bar], [4,1]);
                 
-                if (update_L_index == 0 || true )
+                if (update_L_index == 0 || true)
                     disp("pz_pl updated, time: "+ num2str(t))
                     l_list = [l_list, l_temp];
                     z_list = [z_list, reshape(C*Gramm_c(:,end-1:end), [4,1])];
@@ -258,7 +283,7 @@ for k= 2:(t_max/dt)
                     pz_pl = reshape(nominal_pz_pl(:)+delta_pz_pl_update(:), [4,4]);
                     
                     z_1 = reshape(C*Gramm_c(:,end-1:end), [4,1]); % z = vec(C*Pi)
-                    l_1 = reshape([L_1_bar], [4,1]);
+                    l_1 = reshape([L_bar], [4,1]);
                     
                     if (rank(l_list') == 4)
                         l_2 = inv(pz_pl)*Q(:)
@@ -297,7 +322,7 @@ for k= 2:(t_max/dt)
                     %update the L
                     
                     d_L = reshape(l_2-l_1, [2,2])
-                    L_1_bar = L_1_bar + d_L;
+                    L_bar = L_bar + d_L;
                     % L_2_bar = L_2_bar + d_L(3:end,:);
                     
                     disp("L1 L2 updated, time: "+ num2str(t))
@@ -311,13 +336,10 @@ for k= 2:(t_max/dt)
                     % Pi_2_actual = reshape(temp_sol, [n,2])
                     % e_CPi_2_actual = norm(C*Pi_2_actual-eye(2), 'fro')^2;
                     
-                    %update closed-loop sys
-                    L_1c = kron(eye(N),L_1_bar);
-                    % L_2c = kron(eye(N),L_2_bar);
-                    
-                    A_closed = [A_c, B_c*K_c, B_c*L_1c;
-                        kron(H,G*C), kron(eye(N), F), L_2c;
-                        zeros(2*N, 2*n*N), kron(eye(N), S)];
+                     %update closed-loop sys
+                     L_c = kron(eye(N),L_bar);
+                     A_closed = [A_c+ B_c*K_c, B_c*L_c;
+                     zeros(2*N, n*N), kron(eye(N), S)];
                     
                     
                     
