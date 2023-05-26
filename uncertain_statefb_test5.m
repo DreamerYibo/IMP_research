@@ -1,5 +1,6 @@
 % Unknown A B C dynamics. state feedback feedback case. Update L1 only. F and S have no common eigenvalues.
 %S is jordan block or unstable
+% also tried p-copy
 
 % Unknown A B C dynamics. State feedback case. 
 
@@ -29,8 +30,8 @@ A_bar = [0 1 0 0;...
 %             -0.2604    0.0647    0.2809   -0.1941;
 %             -0.1072   -0.0933    0.1338   -0.1169];
 
-            A = A_bar +[  0     0     0.087045      -0.029077;
-                        0     0     -0.19875     -0.29226;  
+            A = A_bar +[  0     0    0      -0.029077;
+                        0     0     0     -0.29226;  
                         0     0     0     0;
                         0     0     0     0;];
 
@@ -81,8 +82,8 @@ L_bar=Gamma_bar - K*Pi_bar;
 % Pi = zeros(n,2);
 % Gamma = zeros(2,2);
 
-% [Pi, Gamma ]= IMP_full_solver(A,B,C,zeros(n,2),-eye(2,2), S);
-% L=Gamma - K*Pi
+[Pi, Gamma ]= IMP_full_solver(A,B,C,zeros(n,2),-Q, S);
+L=Gamma - K*Pi
 
 L_c = kron(eye(N),L_bar);
 
@@ -259,7 +260,7 @@ for k= 2:(t_max/dt)
         if (counter > 1 && counter - update_L_index > 1)
             
             
-            if (all( abs(Gramm_c(:,end-1:end) - Gramm_c(:,end-3:end-2)) < 0.1) )
+            if (all( abs(Gramm_c(:,end-1:end) - Gramm_c(:,end-3:end-2)) < 0.01) )
                 % % norm(Gramm_c(:,end-1:end))*0.001
                 % %debug: get the pi from the actual model
                 % pi_sigma = -inv(actual_sylv_sq_mat)*kron(eye(2,2), blkdiag(B, eye(n,n)))*reshape([L_bar; L_2_bar], [2*(n+2),1]);
@@ -272,7 +273,7 @@ for k= 2:(t_max/dt)
                 
                 l_temp = reshape([L_bar], [4,1]);
                 
-                if (update_L_index == 0 || true)
+                if (update_L_index == 0 || norm(l_temp - l_list(:,end))>1e-5)
                     disp("pz_pl updated, time: "+ num2str(t))
                     l_list = [l_list, l_temp];
                     z_list = [z_list, reshape(C*Gramm_c(:,end-1:end), [4,1])];
@@ -286,8 +287,8 @@ for k= 2:(t_max/dt)
                     l_1 = reshape([L_bar], [4,1]);
                     
                     if (rank(l_list') == 4)
-                        l_2 = inv(pz_pl)*Q(:)
-                        
+                        l_2 = inv(pz_pl)*Q(:);
+                        disp("update L via pz_pl:")
                     else
                         step_length = 1;
                         
@@ -369,13 +370,13 @@ rgb_list = [255 128 0; 0 153 0; 0 204 204; 204 204 0; 0 51 0; 204 153 0] * 1/255
 
 E_norm = zeros(N,t_max/dt);
 
-% U_norm = zeros(N,t_max/dt);
+U_norm = zeros(N,t_max/dt);
 for k = 1:t_max/dt
-    % u = K_c*X_c(:,k) + L_c*Omega_c(:,k);
+    u = K_c*X_c(:,k) + L_c*Omega_c(:,k);
     for i = 1:N
         %Use Omega_1 for all error plottig
         E_norm(i,k) = norm(C*X_c((i-1)*n + 1:  i*n, k) - Q*Omega_c(2*(i-1)+1:2*i ,k));
-        % U_norm(i,k) = norm(u((i-1)*2+1: i*2));
+        U_norm(i,k) = norm(u((i-1)*2+1: i*2));
     end
 end
 
@@ -391,16 +392,16 @@ legend(temp_h, num2cell(str_array));
 xlabel('time $t \,\, (s)$', 'interpreter', 'latex')
 ylabel("$\parallel y_i-v_i-\bar{v} \,\,\parallel$", 'interpreter', 'latex')
 
-% figure(4)
-% clf(figure(4))
-% for (i=1:N)
-%     temp_h(i) = plot(dt:dt:t_max , U_norm(i,:), 'Color', rgb_list(i,:), 'LineWidth', 1);
-%     hold on
-%     str_array(i) = "Agent"+num2str(i);
-% end
-% legend(temp_h, num2cell(str_array));
-% xlabel('time $t \,\, (s)$', 'interpreter', 'latex')
-% ylabel("$\parallel u_i \,\,\parallel$", 'interpreter', 'latex')
+figure(4)
+clf(figure(4))
+for (i=1:N)
+    temp_h(i) = plot(dt:dt:t_max , U_norm(i,:), 'Color', rgb_list(i,:), 'LineWidth', 1);
+    hold on
+    str_array(i) = "Agent"+num2str(i);
+end
+legend(temp_h, num2cell(str_array));
+xlabel('time $t \,\, (s)$', 'interpreter', 'latex')
+ylabel("$\parallel u_i \,\,\parallel$", 'interpreter', 'latex')
 
 % for (i=1:N)
 %     disp("U_"+num2str(i)+"^2 * dt/t_max")

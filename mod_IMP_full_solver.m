@@ -5,10 +5,10 @@ function [PI,GAMMA] = mod_IMP_full_solver(A,B,C,P,Q,S)
     %%Judge if there is a unique solution.
     %See Corollary A1.2. This part is yet finished. Try getting the result at first
     %%Get the result
-    n = size(A,1) % size of x
-    m = size(B,2) % size of u
-    r = size(P,2) %size of omega
-    p = size(C,1) %size of e
+    n = size(A,1); % size of x
+    m = size(B,2); % size of u
+    r = size(P,2);%size of omega
+    p = size(C,1); %size of e
 
     PI = zeros(n,r);
     GAMMA = zeros(m,r);

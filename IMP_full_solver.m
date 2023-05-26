@@ -5,14 +5,14 @@ function [PI,GAMMA] = IMP_full_solver(A,B,C,P,Q,S)
     %%Get the result
     n = size(A,1); % size of x
     m = size(B,2); % size of u
-    r = size(P,2); %size of omega
+    r = size(S,2); %size of omega
     p = size(C,1); %size of e
 
     PI = zeros(n,r);
     GAMMA = zeros(m,r);
 
     if (m~=p)
-        error("m!=p. There will be more than 1 solution!")
+        warning("m!=p. There will be more than 1 solution!")
     end
     A1 = [A, B; C, zeros(p,m)];
     temp = zeros(n+p,n+m);
@@ -25,7 +25,7 @@ function [PI,GAMMA] = IMP_full_solver(A,B,C,P,Q,S)
     % vec_merge = linsolve(temp2, reshape(R,[(n+p)*r,1]));
     %psudo inverse version 
     vec_merge = pinv(temp2)*reshape(R,[(n+p)*r,1]);
-    matrix_merge = reshape(vec_merge, [n+p, r]);
+    matrix_merge = reshape(vec_merge, [n+m, r]);
     PI = matrix_merge(1:n, :);
     GAMMA = matrix_merge((n+1):end, :);
 end
