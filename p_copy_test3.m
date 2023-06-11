@@ -1,4 +1,4 @@
-% Only make y1 track the given reference. The solutions of IMP equation are not unique in this case
+% Add one column in B
 clc;clear all;
 
 map_size = [100,100]; % cm
@@ -6,7 +6,7 @@ N=1;n=4; %agent 1 original L_bar, agent i L_bar + delta_L_i
 w=1;
 l = 7;
 S = [0, 1; 0, 0]; % exp(S_t) is counter clockwise ()
-Q = [1 -1]; % y1 ---> Qv. y ---> [t; t]
+Q = [1 -1; 1 1]; % y1 ---> Qv. y ---> [t; t]
 v0 = [0 1];
 
 
@@ -29,10 +29,10 @@ A = A_bar;
             %             0     0     0.1338     -0.1169;];
 
 % A = A_bar + [0.5-rand(4,2),zeros(4,1),0.5-rand(4,1)];
-% A = A_bar +  [0.0573   -0.2749         0    0.1002;
-%             0.3933   -0.3173         0    0.2401;
-%             -0.4619   -0.3687         0   -0.3001;
-%             0.4954    0.4156         0    0.0686;];
+% A = A_bar +  [0   -0.2749         0    0.1002;
+%             0  -0.1         0    0.1;
+%             -0   -0.1        0   -0.1;
+%             0    0         0    0;];
 
 
 % A = -A_bar;
@@ -41,10 +41,15 @@ A = A_bar;
 %      1 0;
 %      0 0; 
 %      0 1] + (0.5-rand(4,2));
-B_bar = [0 0;
-        1 0;
-        0 0; 
-        0 1];
+% B_bar = [0 1;
+%         1 0;
+%         1 0; 
+%         0 1];
+
+B_bar = [0 0 0;
+        1 0 1;
+        0 0 1; 
+        0 1 1];
 B = B_bar;
 % B = B_bar + [ 0.0073   -0.2079;
 %      -0.1501   -0.1461;
@@ -56,7 +61,8 @@ B = B_bar;
 %       0.1791   -0.2297;
 %       0.0391   -0.0779];
 
-C_bar= [0 0 1 0;];
+C_bar= [1 0 0 0;
+        0 0 1 0];
 
 C = C_bar;
 % C = C_bar + [0.2321   -0.2170   -0.1289    0.0539;];
@@ -67,18 +73,18 @@ B_c = kron(eye(N), B);
 C_c = kron(eye(N), C);
 
 % p-copy
-G_1 = kron(eye(1), [0 1; 0 0]);
-G_2 = kron(eye(1), [0; 1]);
-
-[~, K, ~] = icare([A_bar, zeros(n,2); G_2*C_bar, G_1], [B_bar; zeros(2,2)] ,3*eye(n+2),[],[],[],[]); %random stabilizing sol
-K = -K;
-
-%%some other tests: start
-
-n = size(A,1); % size of x
+% n = size(A,1); % size of x
 m = size(B,2); % size of u
 r = size(S,2); %size of omega
 p = size(C,1); %size of e
+
+G_1 = kron(eye(p), [0 1; 0 0]);
+G_2 = kron(eye(p), [0; 1]);
+
+[~, K, ~] = icare([A_bar, zeros(n,r*p); G_2*C_bar, G_1], [B_bar; zeros(r*p,m)] ,3*eye(n+r*p),[],[],[],[]); %random stabilizing sol
+K = -K;
+
+%%some other tests: start
 
 A1 = [A, B; C, zeros(p,m)];
     temp = zeros(n+p,n+m);
@@ -88,14 +94,15 @@ A1 = [A, B; C, zeros(p,m)];
     temp2 = kron(transpose(eye(r,r)), A1) -  kron(transpose(S), A2);
     temp2_b = reshape([zeros(n,r); Q],[(n+p)*r,1]);
     null_temp2 = null(temp2);
-    null_pi_gamma = reshape(null_temp2, [4+2,2,size(null_temp2, 2)])
+    null_pi_gamma = reshape(null_temp2, [n+m,r,size(null_temp2, 2)])
     pi_gamma_vec=pinv([temp2; [zeros(m,n),eye(m),zeros(m,n+m)]])*[temp2_b; zeros(m,1)]; % force the first col of Gamma to be zero.
 
     if (norm([temp2; [zeros(m,n),eye(m),zeros(m,n+m)]]*pi_gamma_vec - [temp2_b; zeros(m,1)])>0.01)
+        [temp2; [zeros(m,n),eye(m),zeros(m,n+m)]]*pi_gamma_vec - [temp2_b; zeros(m,1)]
         error('cannot have a correct solution for Gamma') 
     end
 
-    [temp2; [zeros(m,n),eye(m),zeros(m,n+m)]]*pi_gamma_vec - [temp2_b; zeros(m,1)]
+   
 
     pi_gamma = reshape(pi_gamma_vec, [n+m,r]);
     Pi = pi_gamma(1:n,:)
@@ -103,10 +110,14 @@ A1 = [A, B; C, zeros(p,m)];
 
 %%some other tests: end
 
-% % mapping from l to z based on actual model (see "B*L and G*Q" as the input)
-% A_f_actual =[A, zeros(n,2); G_2*C, G_1] + [B; zeros(2,2)]*K;
-% actual_sylv_sq_mat = -kron(S', eye(2*n,2*n))+kron(eye(2,2)', A_f_actual);
-% actual_pz_pl = - kron(eye(2), [C, zeros(2,n)])*inv(actual_sylv_sq_mat)*kron(eye(2,2),[B; zeros(n,2)]);
+% mapping from l to x (Pi and Sigma) based on actual model (see "B*L and G*Q" as the input)
+A_f_actual =[A, zeros(n,r*p); G_2*C, G_1] + [B; zeros(r*p,m)]*K;
+actual_sylv_sq_mat = -kron(S', eye(2*n,2*n))+kron(eye(2,2)', A_f_actual);
+actual_px_pl = - inv(actual_sylv_sq_mat);
+
+actual_x = actual_px_pl * reshape([zeros(n,2);-G_2*Q], [r*n+r*p*r, 1]);
+actual_pi_sigma =  reshape(actual_x, [n+r*p, r]);
+actual_gamma = K*actual_pi_sigma
 
 
 
@@ -119,7 +130,7 @@ Y = zeros(N,t_max/dt);
 % leader_offset = [30; 30];
 Omega_c = zeros(2*N,t_max/dt);
 X_c =  zeros(n*N,t_max/dt);
-Xi_c = zeros(2*N,t_max/dt);
+Xi_c = zeros(r*p*N,t_max/dt);
 
 R_relative = zeros(N,t_max/dt);
 
@@ -140,8 +151,8 @@ X_c(4:n:end, 1) = 0;
 disp("Initial conditions")
 reshape(X_c(:,1),[n,N])
 
-A_closed = [[A, zeros(n,2); G_2*C, G_1] + [B; zeros(2,2)]*K, [zeros(n,2); G_2*(-Q)];
-            zeros(2, n+2), kron(eye(N), S);];
+A_closed = [[A, zeros(n,r*p); G_2*C, G_1] + [B; zeros(r*p,m)]*K, [zeros(n,r); G_2*(-Q)];
+            zeros(r, n+r*p), kron(eye(N), S);];
 
 state_cl = [X_c(:,1); Xi_c(:,1); Omega_c(:,1)]; 
 
@@ -149,8 +160,8 @@ for k= 2:(t_max/dt)
     state_cl = expm(A_closed*dt)*state_cl;
 
     X_c(:,k) = state_cl(1:n);
-    Xi_c(:,k) = state_cl(n+1:n+2);
-    Omega_c(:,k) = state_cl(n+3:end);
+    Xi_c(:,k) = state_cl(n+1:n+r*p);
+    Omega_c(:,k) = state_cl(n+r*p+1:end);
         
     for j =1:N
         X(j,k) = X_c(n*(j-1)+1, k); % Assume C = (I_2 0)
@@ -169,7 +180,7 @@ for k = 1:t_max/dt
     u = K*[X_c(:,k);Xi_c(:,k)];
     for i = 1:N 
         E_norm(i,k) = norm(C*X_c((i-1)*n + 1:  i*n, k) - Q*Omega_c(2*i-1: 2*i ,k));
-        U_norm(i,k) = norm(u((i-1)*2+1: i*2));
+        U_norm(i,k) = norm(u((i-1)*m+1: i*m));
     end
 end
 figure(5)
